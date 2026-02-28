@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>IronFlow Ultra</title>
+    <style>
+        :root { --bg: #000000; --card: #1c1c1e; --accent: #0a84ff; --text: #ffffff; --dim: #8e8e93; --danger: #ff453a; --success: #32d74b; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px 15px 120px 15px; }
+        .card { background: var(--card); padding: 16px; border-radius: 12px; margin-bottom: 12px; position: relative; border: 0.5px solid #38383a; }
+        h2 { font-size: 22px; font-weight: 700; margin-bottom: 15px; }
+        .last-time { font-size: 13px; color: #ffd60a; margin: 4px 0 12px 0; display: block; }
+        select, input { background: #2c2c2e; border: none; color: white; padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; }
+        .set-row { display: grid; grid-template-columns: 1fr 1fr 40px; gap: 8px; margin-bottom: 8px; align-items: center; }
+        .btn { background: var(--accent); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 16px; width: 100%; margin-top: 10px; cursor: pointer; }
+        .btn-secondary { background: #3a3a3c; }
+        .btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+        .btn-del { color: var(--danger); background: none; border: none; font-size: 18px; }
+        nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(28,28,30,0.95); backdrop-filter: blur(10px); display: flex; border-top: 0.5px solid #38383a; padding-bottom: env(safe-area-inset-bottom); }
+        nav button { flex: 1; padding: 15px 0; background: none; border: none; color: var(--dim); font-size: 11px; }
+        nav button.active { color: var(--accent); }
+        .hidden { display: none !important; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <div id="view-workout">
+        <h2>Active Workout</h2>
+        <div id="active-content"></div>
+        <button class="btn btn-ghost" onclick="addExercise()">+ Add Exercise</button>
+        <button id="finish-btn" class="btn" style="background: var(--success); margin-top: 30px;" onclick="finishWorkout()">Finish Workout</button>
+    </div>
+
+    <div id="view-history" class="hidden">
+        <div class="flex-between"><h2>History</h2><button class="btn-del" onclick="exportData()" style="font-size: 12px; color: var(--accent)">Export JSON</button></div>
+        <div id="history-content"></div>
+    </div>
+
+    <div id="view-settings" class="hidden">
+        <h2>Exercises</h2>
+        <div class="card">
+            <input type="text" id="new-ex-name" placeholder="e.g. Squat">
+            <button class="btn btn-secondary" onclick="createEntity()">Create New Exercise</button>
+        </div>
+        <div id="entity-list"></div>
+        <h2 style="margin-top:40px">Data Management</h2>
+        <div class="card">
+            <label for="importFile" class="btn btn-ghost" style="display:block; text-align:center;">📂 Import Backup</label>
+            <input type="file" id="importFile" class="hidden" onchange="importData(event)">
+        </div>
+        <button class="btn-del" onclick="wipeAllData()" style="margin-top: 50px; font-size: 12px; width: 100%">Wipe All Data</button>
+    </div>
+
+    <nav>
+        <button onclick="showView('workout')" id="nav-workout">Workout</button>
+        <button onclick="showView('history')" id="nav-history">History</button>
+        <button onclick="showView('settings')" id="nav-settings">Exercises</button>
+    </nav>
+
+    <script>
+        let entities = JSON.parse(localStorage.getItem('if_entities')) || ['Bench Press', 'Squat', 'Deadlift'];
+        let history = JSON.parse(localStorage.getItem('if_history')) || [];
+        let activeWorkout = JSON.parse(localStorage.getItem('if_active')) || { exercises: [] };
+
+        function showView(view) {
+            ['workout', 'history', 'settings'].forEach(v => {
+                document.getElementById('view-' + v).classList.add('hidden');
+                document.getElementById('nav-' + v).classList.remove('active');
+            });
+            document.getElementById('view-' + view).classList.remove('hidden');
+            document.getElementById('nav-' + view).classList.add('active');
+            if(view === 'history') renderHistory();
+            if(view === 'settings') renderSettings();
+        }
+
+        function addExercise() { activeWorkout.exercises.push({ name: '', sets: [{ wt: '', rp: '' }] }); saveAndRender(); }
+        function addSet(exIdx) { activeWorkout.exercises[exIdx].sets.push({ wt: '', rp: '' }); saveAndRender(); }
+        function updateSet(exIdx, setIdx, field, val) { activeWorkout.exercises[exIdx].sets[setIdx][field] = val; localStorage.setItem('if_active', JSON.stringify(activeWorkout)); }
+        function updateExName(exIdx, name) { activeWorkout.exercises[exIdx].name = name; saveAndRender(); }
+        function removeSet(exIdx, setIdx) { activeWorkout.exercises[exIdx].sets.splice(setIdx, 1); if(activeWorkout.exercises[exIdx].sets.length === 0) activeWorkout.exercises.splice(exIdx, 1); saveAndRender(); }
+        function saveAndRender() { localStorage.setItem('if_active', JSON.stringify(activeWorkout)); renderActive(); }
+
+        function finishWorkout() {
+            const filtered = activeWorkout.exercises.filter(ex => ex.name && ex.sets.some(s => s.wt && s.rp));
+            if(filtered.length === 0) return alert("Log at least one set!");
+            history.unshift({ id: Date.now(), date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }), exercises: filtered });
+            localStorage.setItem('if_history', JSON.stringify(history));
+            activeWorkout = { exercises: [] }; localStorage.removeItem('if_active');
+            showView('history');
+        }
+
+        function renderActive() {
+            const container = document.getElementById('active-content');
+            container.innerHTML = activeWorkout.exercises.map((ex, exIdx) => `
+                <div class="card">
+                    <select onchange="updateExName(${exIdx}, this.value)">
+                        <option value="">Choose Exercise...</option>
+                        ${entities.map(ent => `<option value="${ent}" ${ex.name === ent ? 'selected' : ''}>${ent}</option>`).join('')}
+                    </select>
+                    <span class="last-time">${getLastTime(ex.name)}</span>
+                    ${ex.sets.map((set, setIdx) => `
+                        <div class="set-row">
+                            <input type="number" placeholder="kg" value="${set.wt}" oninput="updateSet(${exIdx}, ${setIdx}, 'wt', this.value)">
+                            <input type="number" placeholder="reps" value="${set.rp}" oninput="updateSet(${exIdx}, ${setIdx}, 'rp', this.value)">
+                            <button class="btn-del" onclick="removeSet(${exIdx}, ${setIdx})">✕</button>
+                        </div>
+                    `).join('')}
+                    <button class="btn btn-secondary" onclick="addSet(${exIdx})">+ Set</button>
+                </div>
+            `).join('');
+            document.getElementById('finish-btn').classList.toggle('hidden', activeWorkout.exercises.length === 0);
+        }
+
+        function getLastTime(name) {
+            if(!name) return "";
+            const found = history.find(w => w.exercises.find(e => e.name === name));
+            if(!found) return "First time!";
+            const ex = found.exercises.find(e => e.name === name);
+            return `Last: ${ex.sets[0].wt}kg x ${ex.sets[0].rp}`;
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-content');
+            container.innerHTML = history.map((w, idx) => `
+                <div class="card">
+                    <div class="flex-between"><strong>${w.date}</strong> <button class="btn-del" onclick="deleteHistory(${idx})">🗑️</button></div>
+                    ${w.exercises.map(e => `<div style="font-size:14px; margin-top:5px">${e.name}: ${e.sets.map(s => `${s.wt}x${s.rp}`).join(', ')}</div>`).join('')}
+                </div>
+            `).join('');
+        }
+
+        function deleteHistory(idx) { if(confirm("Delete workout?")) { history.splice(idx,1); localStorage.setItem('if_history', JSON.stringify(history)); renderHistory(); } }
+        function createEntity() { const n = document.getElementById('new-ex-name').value; if(!n) return; entities.push(n); localStorage.setItem('if_entities', JSON.stringify(entities)); document.getElementById('new-ex-name').value = ''; renderSettings(); }
+        function renderSettings() { document.getElementById('entity-list').innerHTML = entities.map((e,i) => `<div class="card flex-between">${e} <button class="btn-del" onclick="entities.splice(${i},1); localStorage.setItem('if_entities', JSON.stringify(entities)); renderSettings()">✕</button></div>`).join(''); }
+        function exportData() { const blob = new Blob([JSON.stringify({history, entities})], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'gym-backup.json'; a.click(); }
+        function importData(event) { const reader = new FileReader(); reader.onload = (e) => { const d = JSON.parse(e.target.result); history = d.history; entities = d.entities; localStorage.setItem('if_history', JSON.stringify(history)); localStorage.setItem('if_entities', JSON.stringify(entities)); location.reload(); }; reader.readAsText(event.target.files[0]); }
+        function wipeAllData() { if(confirm("Wipe everything?")) { localStorage.clear(); location.reload(); } }
+
+        renderActive();
+        showView('workout');
+    </script>
+</body>
+</html>
