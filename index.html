@@ -19,11 +19,10 @@
         .btn { background: var(--accent); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 16px; width: 100%; margin-top: 10px; cursor: pointer; text-align: center; display: flex; justify-content: center; align-items: center; }
         .btn-secondary { background: #3a3a3c; }
         .btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
-        .btn-del { color: var(--danger); background: none; border: none; font-size: 18px; display: flex; align-items: center; justify-content: center;}
+        .btn-del { color: var(--danger); background: none; border: none; font-size: 18px; display: flex; align-items: center; justify-content: center; padding: 5px; }
+        .btn-edit { color: var(--accent); background: none; border: none; font-size: 14px; font-weight: 600; padding: 5px; }
 
-        /* Exercise List & Progress Toggle */
-        .ex-item { cursor: pointer; transition: background 0.2s; }
-        .ex-item:active { background: #2c2c2e; }
+        .ex-item { cursor: pointer; }
         .prog-container { margin-top: 12px; padding-top: 12px; border-top: 0.5px solid #38383a; display: none; }
         .prog-container.active { display: block; }
         .prog-row { margin-bottom: 10px; border-left: 2px solid var(--accent); padding-left: 10px; }
@@ -51,7 +50,7 @@
     </div>
 
     <div id="view-history" class="hidden">
-        <div class="flex-between"><h2>History</h2><button class="btn-del" onclick="exportData()" style="font-size: 12px; color: var(--accent)">Export JSON</button></div>
+        <div class="flex-between"><h2>History</h2><button class="btn-edit" onclick="exportData()" style="text-transform: uppercase; font-size: 11px;">Export JSON</button></div>
         <div id="history-content"></div>
     </div>
 
@@ -61,9 +60,7 @@
             <input type="text" id="new-ex-name" placeholder="e.g. Squat">
             <button class="btn btn-secondary" onclick="createEntity()">Create New Exercise</button>
         </div>
-        <p style="font-size: 12px; color: var(--dim); margin-left: 5px;">Tap an exercise to see progress history</p>
         <div id="entity-list"></div>
-        
         <h2 style="margin-top:40px">Data Management</h2>
         <div class="card" style="padding: 0; border: none; background: transparent;">
             <label for="importFile" class="btn btn-ghost" style="display:flex; justify-content:center; align-items:center; gap:8px; cursor:pointer;">📂 Import Backup</label>
@@ -108,10 +105,16 @@
             const formattedDate = new Date(dateVal).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
             const filtered = activeWorkout.exercises.filter(ex => ex.name && ex.sets.some(s => s.wt && s.rp));
             if(filtered.length === 0) return alert("Log at least one set!");
-            history.unshift({ id: Date.now(), date: formattedDate, exercises: filtered });
+
+            history.unshift({ id: Date.now(), date: formattedDate, rawDate: dateVal, exercises: filtered });
             localStorage.setItem('if_history', JSON.stringify(history));
-            activeWorkout = { exercises: [] }; localStorage.removeItem('if_active');
+            
+            // FULL RESET
+            activeWorkout = { exercises: [] };
+            localStorage.removeItem('if_active');
             document.getElementById('workout-date').valueAsDate = new Date();
+            
+            renderActive();
             showView('history');
         }
 
@@ -137,6 +140,41 @@
             document.getElementById('finish-btn').classList.toggle('hidden', activeWorkout.exercises.length === 0);
         }
 
+        function editWorkout(idx) {
+            if(activeWorkout.exercises.length > 0 && !confirm("Overwrite current active session with this history item?")) return;
+            const item = history[idx];
+            activeWorkout = JSON.parse(JSON.stringify(item)); // Deep copy
+            if(item.rawDate) document.getElementById('workout-date').value = item.rawDate;
+            history.splice(idx, 1);
+            localStorage.setItem('if_history', JSON.stringify(history));
+            saveAndRender();
+            showView('workout');
+        }
+
+        function deleteHistory(idx) {
+            if(confirm("Delete this workout from history?")) {
+                history.splice(idx, 1);
+                localStorage.setItem('if_history', JSON.stringify(history));
+                renderHistory();
+            }
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-content');
+            container.innerHTML = history.map((w, idx) => `
+                <div class="card">
+                    <div class="flex-between">
+                        <strong>${w.date}</strong> 
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn-edit" onclick="editWorkout(${idx})">✎ EDIT</button>
+                            <button class="btn-del" style="font-size:16px;" onclick="deleteHistory(${idx})">✕</button>
+                        </div>
+                    </div>
+                    ${w.exercises.map(e => `<div style="font-size:14px; margin-top:5px">${e.name}: ${e.sets.map(s => `${s.wt}x${s.rp}`).join(', ')}</div>`).join('')}
+                </div>
+            `).join('');
+        }
+
         function getLastTime(name) {
             if(!name) return "";
             const found = history.find(w => w.exercises.find(e => e.name === name));
@@ -145,57 +183,23 @@
             return `Last: ${ex.sets[0].wt}kg x ${ex.sets[0].rp}`;
         }
 
-        function renderHistory() {
-            const container = document.getElementById('history-content');
-            container.innerHTML = history.map((w, idx) => `
-                <div class="card">
-                    <div class="flex-between"><strong>${w.date}</strong> <button class="btn-del" onclick="deleteHistory(${idx})">🗑️</button></div>
-                    ${w.exercises.map(e => `<div style="font-size:14px; margin-top:5px">${e.name}: ${e.sets.map(s => `${s.wt}x${s.rp}`).join(', ')}</div>`).join('')}
-                </div>
-            `).join('');
-        }
-
         function toggleProgress(exName, id) {
             const el = document.getElementById('prog-' + id);
             const isActive = el.classList.contains('active');
-            
-            // Close all others first (optional, for accordion feel)
             document.querySelectorAll('.prog-container').forEach(c => c.classList.remove('active'));
-            
             if(!isActive) {
                 const instances = history.filter(w => w.exercises.some(e => e.name === exName));
-                if(instances.length === 0) {
-                    el.innerHTML = '<p style="font-size:12px; color:var(--dim)">No history for this exercise yet.</p>';
-                } else {
-                    el.innerHTML = instances.map(w => {
-                        const exData = w.exercises.find(e => e.name === exName);
-                        return `
-                            <div class="prog-row">
-                                <div class="prog-date">${w.date}</div>
-                                <div style="font-size:13px">${exData.sets.map(s => `<strong>${s.wt}kg</strong>x${s.rp}`).join(' • ')}</div>
-                            </div>
-                        `;
-                    }).join('');
-                }
+                el.innerHTML = instances.length ? instances.map(w => {
+                    const exData = w.exercises.find(e => e.name === exName);
+                    return `<div class="prog-row"><div class="prog-date">${w.date}</div><div style="font-size:13px">${exData.sets.map(s => `<strong>${s.wt}kg</strong>x${s.rp}`).join(' • ')}</div></div>`;
+                }).join('') : '<p style="font-size:12px; color:var(--dim)">No history yet.</p>';
                 el.classList.add('active');
             }
         }
 
         function createEntity() { const n = document.getElementById('new-ex-name').value; if(!n) return; entities.push(n); localStorage.setItem('if_entities', JSON.stringify(entities)); document.getElementById('new-ex-name').value = ''; renderSettings(); }
-        
-        function renderSettings() { 
-            document.getElementById('entity-list').innerHTML = entities.map((e,i) => `
-                <div class="card ex-item">
-                    <div class="flex-between" onclick="toggleProgress('${e}', ${i})">
-                        <span>${e}</span>
-                        <button class="btn-del" onclick="event.stopPropagation(); deleteEntity(${i})">✕</button>
-                    </div>
-                    <div id="prog-${i}" class="prog-container"></div>
-                </div>
-            `).join(''); 
-        }
-
-        function deleteEntity(i) { if(confirm("Delete this exercise entity?")) { entities.splice(i,1); localStorage.setItem('if_entities', JSON.stringify(entities)); renderSettings(); } }
+        function renderSettings() { document.getElementById('entity-list').innerHTML = entities.map((e,i) => `<div class="card ex-item"><div class="flex-between" onclick="toggleProgress('${e}', ${i})"><span>${e}</span><button class="btn-del" onclick="event.stopPropagation(); deleteEntity(${i})">✕</button></div><div id="prog-${i}" class="prog-container"></div></div>`).join(''); }
+        function deleteEntity(i) { if(confirm("Delete exercise?")) { entities.splice(i,1); localStorage.setItem('if_entities', JSON.stringify(entities)); renderSettings(); } }
         function exportData() { const blob = new Blob([JSON.stringify({history, entities})], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'gym-backup.json'; a.click(); }
         function importData(event) { const reader = new FileReader(); reader.onload = (e) => { try { const d = JSON.parse(e.target.result); history = d.history || []; entities = d.entities || entities; localStorage.setItem('if_history', JSON.stringify(history)); localStorage.setItem('if_entities', JSON.stringify(entities)); location.reload(); } catch(err) { alert("Invalid file."); } }; reader.readAsText(event.target.files[0]); }
         function wipeAllData() { if(confirm("Wipe everything?")) { localStorage.clear(); location.reload(); } }
