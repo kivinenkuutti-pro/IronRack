@@ -6,87 +6,35 @@
     <title>IronFlow Ultra</title>
     <style>
         :root { --bg: #000000; --card: #1c1c1e; --accent: #0a84ff; --text: #ffffff; --dim: #8e8e93; --danger: #ff453a; --success: #32d74b; }
-        
-        /* Universal Box Sizing fix to prevent horizontal overflow */
         * { box-sizing: border-box; }
-
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-            background: var(--bg); 
-            color: var(--text); 
-            margin: 0; 
-            padding: 20px 15px 120px 15px; 
-            overflow-x: hidden; /* Prevent accidental side-scrolling */
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px 15px 120px 15px; overflow-x: hidden; }
         
-        .card { 
-            background: var(--card); 
-            padding: 16px; 
-            border-radius: 12px; 
-            margin-bottom: 12px; 
-            position: relative; 
-            border: 0.5px solid #38383a; 
-            width: 100%; /* Ensure it stays within parent padding */
-        }
-
+        .card { background: var(--card); padding: 16px; border-radius: 12px; margin-bottom: 12px; position: relative; border: 0.5px solid #38383a; width: 100%; }
         h2 { font-size: 22px; font-weight: 700; margin-bottom: 15px; }
         .last-time { font-size: 13px; color: #ffd60a; margin: 4px 0 12px 0; display: block; }
         
-        select, input { 
-            background: #2c2c2e; 
-            border: none; 
-            color: white; 
-            padding: 12px; 
-            border-radius: 8px; 
-            font-size: 16px; 
-            width: 100%; 
-            -webkit-appearance: none; 
-        }
-
+        select, input { background: #2c2c2e; border: none; color: white; padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; -webkit-appearance: none; }
         .set-row { display: grid; grid-template-columns: 1fr 1fr 40px; gap: 8px; margin-bottom: 8px; align-items: center; }
         
-        .btn { 
-            background: var(--accent); 
-            color: white; 
-            border: none; 
-            padding: 14px; 
-            border-radius: 10px; 
-            font-weight: 600; 
-            font-size: 16px; 
-            width: 100%; 
-            margin-top: 10px; 
-            cursor: pointer; 
-            text-align: center; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
+        .btn { background: var(--accent); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 16px; width: 100%; margin-top: 10px; cursor: pointer; text-align: center; display: flex; justify-content: center; align-items: center; }
         .btn-secondary { background: #3a3a3c; }
         .btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
         .btn-del { color: var(--danger); background: none; border: none; font-size: 18px; display: flex; align-items: center; justify-content: center;}
 
-        /* Navigation Fixes */
-        nav { 
-            position: fixed; 
-            bottom: 0; 
-            left: 0; 
-            right: 0; 
-            background: rgba(28,28,30,0.95); 
-            backdrop-filter: blur(10px); 
-            display: flex; 
-            border-top: 0.5px solid #38383a; 
-            padding-bottom: env(safe-area-inset-bottom); 
-            z-index: 999;
-        }
-        nav button { flex: 1; padding: 15px 0; background: none; border: none; color: var(--dim); font-size: 11px; }
-        nav button.active { color: var(--accent); }
+        /* Exercise List & Progress Toggle */
+        .ex-item { cursor: pointer; transition: background 0.2s; }
+        .ex-item:active { background: #2c2c2e; }
+        .prog-container { margin-top: 12px; padding-top: 12px; border-top: 0.5px solid #38383a; display: none; }
+        .prog-container.active { display: block; }
+        .prog-row { margin-bottom: 10px; border-left: 2px solid var(--accent); padding-left: 10px; }
+        .prog-date { font-size: 11px; color: var(--accent); font-weight: bold; margin-bottom: 2px; }
 
+        nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(28,28,30,0.95); backdrop-filter: blur(10px); display: flex; border-top: 0.5px solid #38383a; padding-bottom: env(safe-area-inset-bottom); z-index: 999; }
+        nav button { flex: 1; padding: 15px 0; background: none; border: none; color: var(--dim); font-size: 11px; font-weight: 500; }
+        nav button.active { color: var(--accent); }
+        
         .hidden { display: none !important; }
         .flex-between { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-
-        /* Centering specific to the Import label inside the ghost button */
-        .import-label { gap: 8px; width: 100%; height: 100%; }
     </style>
 </head>
 <body>
@@ -113,13 +61,12 @@
             <input type="text" id="new-ex-name" placeholder="e.g. Squat">
             <button class="btn btn-secondary" onclick="createEntity()">Create New Exercise</button>
         </div>
+        <p style="font-size: 12px; color: var(--dim); margin-left: 5px;">Tap an exercise to see progress history</p>
         <div id="entity-list"></div>
         
         <h2 style="margin-top:40px">Data Management</h2>
         <div class="card" style="padding: 0; border: none; background: transparent;">
-            <label for="importFile" class="btn btn-ghost import-label">
-                📂 Import Backup
-            </label>
+            <label for="importFile" class="btn btn-ghost" style="display:flex; justify-content:center; align-items:center; gap:8px; cursor:pointer;">📂 Import Backup</label>
             <input type="file" id="importFile" class="hidden" onchange="importData(event)">
         </div>
         <button class="btn-del" onclick="wipeAllData()" style="margin-top: 50px; font-size: 12px; width: 100%; text-align: center;">Wipe All Data</button>
@@ -208,9 +155,47 @@
             `).join('');
         }
 
-        function deleteHistory(idx) { if(confirm("Delete workout?")) { history.splice(idx,1); localStorage.setItem('if_history', JSON.stringify(history)); renderHistory(); } }
+        function toggleProgress(exName, id) {
+            const el = document.getElementById('prog-' + id);
+            const isActive = el.classList.contains('active');
+            
+            // Close all others first (optional, for accordion feel)
+            document.querySelectorAll('.prog-container').forEach(c => c.classList.remove('active'));
+            
+            if(!isActive) {
+                const instances = history.filter(w => w.exercises.some(e => e.name === exName));
+                if(instances.length === 0) {
+                    el.innerHTML = '<p style="font-size:12px; color:var(--dim)">No history for this exercise yet.</p>';
+                } else {
+                    el.innerHTML = instances.map(w => {
+                        const exData = w.exercises.find(e => e.name === exName);
+                        return `
+                            <div class="prog-row">
+                                <div class="prog-date">${w.date}</div>
+                                <div style="font-size:13px">${exData.sets.map(s => `<strong>${s.wt}kg</strong>x${s.rp}`).join(' • ')}</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+                el.classList.add('active');
+            }
+        }
+
         function createEntity() { const n = document.getElementById('new-ex-name').value; if(!n) return; entities.push(n); localStorage.setItem('if_entities', JSON.stringify(entities)); document.getElementById('new-ex-name').value = ''; renderSettings(); }
-        function renderSettings() { document.getElementById('entity-list').innerHTML = entities.map((e,i) => `<div class="card flex-between">${e} <button class="btn-del" onclick="entities.splice(${i},1); localStorage.setItem('if_entities', JSON.stringify(entities)); renderSettings()">✕</button></div>`).join(''); }
+        
+        function renderSettings() { 
+            document.getElementById('entity-list').innerHTML = entities.map((e,i) => `
+                <div class="card ex-item">
+                    <div class="flex-between" onclick="toggleProgress('${e}', ${i})">
+                        <span>${e}</span>
+                        <button class="btn-del" onclick="event.stopPropagation(); deleteEntity(${i})">✕</button>
+                    </div>
+                    <div id="prog-${i}" class="prog-container"></div>
+                </div>
+            `).join(''); 
+        }
+
+        function deleteEntity(i) { if(confirm("Delete this exercise entity?")) { entities.splice(i,1); localStorage.setItem('if_entities', JSON.stringify(entities)); renderSettings(); } }
         function exportData() { const blob = new Blob([JSON.stringify({history, entities})], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'gym-backup.json'; a.click(); }
         function importData(event) { const reader = new FileReader(); reader.onload = (e) => { try { const d = JSON.parse(e.target.result); history = d.history || []; entities = d.entities || entities; localStorage.setItem('if_history', JSON.stringify(history)); localStorage.setItem('if_entities', JSON.stringify(entities)); location.reload(); } catch(err) { alert("Invalid file."); } }; reader.readAsText(event.target.files[0]); }
         function wipeAllData() { if(confirm("Wipe everything?")) { localStorage.clear(); location.reload(); } }
