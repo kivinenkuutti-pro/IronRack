@@ -6,29 +6,87 @@
     <title>IronFlow Ultra</title>
     <style>
         :root { --bg: #000000; --card: #1c1c1e; --accent: #0a84ff; --text: #ffffff; --dim: #8e8e93; --danger: #ff453a; --success: #32d74b; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px 15px 120px 15px; }
         
-        .card { background: var(--card); padding: 16px; border-radius: 12px; margin-bottom: 12px; position: relative; border: 0.5px solid #38383a; }
+        /* Universal Box Sizing fix to prevent horizontal overflow */
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 20px 15px 120px 15px; 
+            overflow-x: hidden; /* Prevent accidental side-scrolling */
+        }
+        
+        .card { 
+            background: var(--card); 
+            padding: 16px; 
+            border-radius: 12px; 
+            margin-bottom: 12px; 
+            position: relative; 
+            border: 0.5px solid #38383a; 
+            width: 100%; /* Ensure it stays within parent padding */
+        }
+
         h2 { font-size: 22px; font-weight: 700; margin-bottom: 15px; }
         .last-time { font-size: 13px; color: #ffd60a; margin: 4px 0 12px 0; display: block; }
         
-        select, input { background: #2c2c2e; border: none; color: white; padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; -webkit-appearance: none; }
+        select, input { 
+            background: #2c2c2e; 
+            border: none; 
+            color: white; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            width: 100%; 
+            -webkit-appearance: none; 
+        }
+
         .set-row { display: grid; grid-template-columns: 1fr 1fr 40px; gap: 8px; margin-bottom: 8px; align-items: center; }
         
-        .btn { background: var(--accent); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 16px; width: 100%; margin-top: 10px; cursor: pointer; text-align: center; display: block; }
+        .btn { 
+            background: var(--accent); 
+            color: white; 
+            border: none; 
+            padding: 14px; 
+            border-radius: 10px; 
+            font-weight: 600; 
+            font-size: 16px; 
+            width: 100%; 
+            margin-top: 10px; 
+            cursor: pointer; 
+            text-align: center; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
         .btn-secondary { background: #3a3a3c; }
         .btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
-        .btn-del { color: var(--danger); background: none; border: none; font-size: 18px; }
+        .btn-del { color: var(--danger); background: none; border: none; font-size: 18px; display: flex; align-items: center; justify-content: center;}
 
-        /* Fixed Centering for Import Button */
-        .import-container { display: flex; justify-content: center; align-items: center; width: 100%; }
-        .import-label { display: flex; justify-content: center; align-items: center; gap: 8px; cursor: pointer; }
-
-        nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(28,28,30,0.95); backdrop-filter: blur(10px); display: flex; border-top: 0.5px solid #38383a; padding-bottom: env(safe-area-inset-bottom); }
+        /* Navigation Fixes */
+        nav { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+            background: rgba(28,28,30,0.95); 
+            backdrop-filter: blur(10px); 
+            display: flex; 
+            border-top: 0.5px solid #38383a; 
+            padding-bottom: env(safe-area-inset-bottom); 
+            z-index: 999;
+        }
         nav button { flex: 1; padding: 15px 0; background: none; border: none; color: var(--dim); font-size: 11px; }
         nav button.active { color: var(--accent); }
+
         .hidden { display: none !important; }
-        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+
+        /* Centering specific to the Import label inside the ghost button */
+        .import-label { gap: 8px; width: 100%; height: 100%; }
     </style>
 </head>
 <body>
@@ -58,13 +116,13 @@
         <div id="entity-list"></div>
         
         <h2 style="margin-top:40px">Data Management</h2>
-        <div class="card import-container">
+        <div class="card" style="padding: 0; border: none; background: transparent;">
             <label for="importFile" class="btn btn-ghost import-label">
-                📂 <span>Import Backup</span>
+                📂 Import Backup
             </label>
             <input type="file" id="importFile" class="hidden" onchange="importData(event)">
         </div>
-        <button class="btn-del" onclick="wipeAllData()" style="margin-top: 50px; font-size: 12px; width: 100%">Wipe All Data</button>
+        <button class="btn-del" onclick="wipeAllData()" style="margin-top: 50px; font-size: 12px; width: 100%; text-align: center;">Wipe All Data</button>
     </div>
 
     <nav>
@@ -78,7 +136,6 @@
         let history = JSON.parse(localStorage.getItem('if_history')) || [];
         let activeWorkout = JSON.parse(localStorage.getItem('if_active')) || { exercises: [] };
 
-        // Set default date to today
         document.getElementById('workout-date').valueAsDate = new Date();
 
         function showView(view) {
@@ -102,15 +159,12 @@
         function finishWorkout() {
             const dateVal = document.getElementById('workout-date').value;
             const formattedDate = new Date(dateVal).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-            
             const filtered = activeWorkout.exercises.filter(ex => ex.name && ex.sets.some(s => s.wt && s.rp));
             if(filtered.length === 0) return alert("Log at least one set!");
-
             history.unshift({ id: Date.now(), date: formattedDate, exercises: filtered });
             localStorage.setItem('if_history', JSON.stringify(history));
-            activeWorkout = { exercises: [] }; 
-            localStorage.removeItem('if_active');
-            document.getElementById('workout-date').valueAsDate = new Date(); // Reset date
+            activeWorkout = { exercises: [] }; localStorage.removeItem('if_active');
+            document.getElementById('workout-date').valueAsDate = new Date();
             showView('history');
         }
 
@@ -130,7 +184,7 @@
                             <button class="btn-del" onclick="removeSet(${exIdx}, ${setIdx})">✕</button>
                         </div>
                     `).join('')}
-                    <button class="btn btn-secondary" onclick="addSet(${exIdx})">+ Set</button>
+                    <button class="btn btn-secondary" style="padding:8px; font-size:12px; margin-top:5px;" onclick="addSet(${exIdx})">+ Set</button>
                 </div>
             `).join('');
             document.getElementById('finish-btn').classList.toggle('hidden', activeWorkout.exercises.length === 0);
